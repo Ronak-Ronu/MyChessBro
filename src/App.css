@@ -2,4 +2,23 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-  }
+}
+
+.buttons{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+button{
+    cursor: pointer;
+    background-color: rgb(144, 144, 232);
+    border: none;
+    font-size: 21px;
+    border-radius: 10px;
+    padding: 10px 20px;
+    margin: 10px;
+}
+button:hover{
+    background-color: rgb(114, 114, 202);
+    color: white;
+}

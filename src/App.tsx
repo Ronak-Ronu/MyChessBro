@@ -1,5 +1,5 @@
 // src/App.tsx
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import './App.css'; 
@@ -73,7 +73,27 @@ function App() {
   const [gamePosition, setGamePosition] = useState(chess.current.fen());
   const stockfishWorker = useRef<Worker | null>(null);
   const [suggestedMove, setSuggestedMove] = useState<[string, string] | null>(null);
+  const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+  const [possibleMoves, setPossibleMoves] = useState<Square[]>([]);
 
+ 
+  const bestMoveArrows: [Square, Square][] = []; // Define bestMoveArrows as an empty array
+ 
+  const boardStyle = useMemo(() => {
+    const style: Record<string, React.CSSProperties> = {}; // Change the type here
+    bestMoveArrows.forEach((arrow) => {
+      style[arrow[0]] = { ...style[arrow[0]], backgroundColor: 'rgba(144, 238, 144, 0.7)' };
+      style[arrow[1]] = { ...style[arrow[1]], backgroundColor: 'rgba(144, 238, 144, 0.7)' };
+    });
+    if (selectedSquare) {
+      style[selectedSquare] = { ...style[selectedSquare], border: '3px solid yellow' };
+    }
+    possibleMoves.forEach((square) => {
+      style[square] = { ...style[square], backgroundColor: 'rgba(173, 216, 230, 0.7)' };
+    });
+    return style;
+  }, [bestMoveArrows, possibleMoves, selectedSquare]);
+  
   function onDrop(sourceSquare: string, targetSquare: string) {
     let move = null;
     try {
@@ -82,8 +102,10 @@ function App() {
         to: targetSquare,
         promotion: 'q',
       });
-    } catch (e) {
+    }
+     catch (e) {
       console.log("Illegal move:", e);
+      alert('Illegal move!');
     }
 
     if (move === null) return false;
@@ -97,6 +119,49 @@ function App() {
     return true;
   }
 
+  function handleSquareClick(square: Square) {
+    // console.log("Clicked square:", square);
+    // console.log("Current selectedSquare:", selectedSquare);
+  
+    if (selectedSquare) {
+      const pieceOnTarget = chess.current.get(square);
+      const pieceOnSelected = chess.current.get(selectedSquare);
+  
+      if (pieceOnTarget && pieceOnSelected && pieceOnTarget.color === pieceOnSelected.color) {
+        setSelectedSquare(square);
+        const moves = chess.current.moves({ square: square, verbose: true });
+        setPossibleMoves(moves.map((m) => m.to as Square));
+        // console.log("New selection (same color) - selectedSquare:", selectedSquare, "possibleMoves:", possibleMoves);
+      } else {
+        const move = chess.current.move({
+          from: selectedSquare,
+          to: square,
+          promotion: 'q',
+        });
+  
+        if (move) {
+          setGamePosition(chess.current.fen());
+          setSuggestedMove(null);
+          setSelectedSquare(null);
+          setPossibleMoves([]);
+          // console.log("Moved - selectedSquare:", selectedSquare, "possibleMoves:", possibleMoves);
+        } else {
+          setSelectedSquare(null);
+          setPossibleMoves([]);
+          // console.log("Illegal move - Deselected - selectedSquare:", selectedSquare, "possibleMoves:", possibleMoves);
+        }
+      }
+    } else {
+      if (chess.current.get(square)) {
+        setSelectedSquare(square);
+        const moves = chess.current.moves({ square: square, verbose: true });
+        setPossibleMoves(moves.map((m) => m.to as Square));
+        // console.log("First selection - selectedSquare:", selectedSquare, "possibleMoves:", possibleMoves);
+      }
+    }
+  }
+
+
   useEffect(() => {
     stockfishWorker.current = new Worker(new URL('./stockfishWorker.ts', import.meta.url), {
       type: 'module',
@@ -104,16 +169,18 @@ function App() {
     stockfishWorker.current.postMessage({ command: 'init' });
 
     stockfishWorker.current.onmessage = (event) => {
-      const { type, move, error } = event.data;
+      const { type, move, 
+// error
+       } = event.data;
       if (type === 'moveResult') {
-        console.log("Stockfish Best Move:", move);
+        // console.log("Stockfish Best Move:", move);
         if (move && typeof move === 'string' && move.length >= 4) {
           const from = move.slice(0, 2);
           const to = move.slice(2, 4);
           setSuggestedMove([from, to]);
         }
       } else if (type === 'moveError') {
-        console.error("Error from Stockfish worker:", error);
+        // console.error("Error from Stockfish worker:", error);
       }
     };
 
@@ -137,7 +204,7 @@ function App() {
 
   const boardContainerStyle: React.CSSProperties = {
     width: 'calc(100vmin - 100px)',
-    maxWidth: '500px',
+    maxWidth: '800px',
     margin: '20px auto',
     border: '5px solid #61dafb',
     borderRadius: '8px',
@@ -160,24 +227,36 @@ function App() {
   return (
     <div style={appStyle}>
       <div style={boardContainerStyle}>
-        <Chessboard
-          position={gamePosition}
-          onPieceDrop={onDrop}
-          boardOrientation="white"
-          customArrows={customArrows}
-        />
+          <Chessboard
+              position={gamePosition}
+              onPieceDrop={onDrop}
+              boardOrientation="white"
+              customArrows={customArrows}
+              onSquareClick={handleSquareClick}
+              customSquareStyles={boardStyle}
+              customDarkSquareStyle={{ backgroundColor: '#779556' }}
+              customLightSquareStyle={{ backgroundColor: '#ebecd0' }}
+            />
       </div>
       <p>Current FEN: {gamePosition}</p>
-      <button onClick={getStockfishMove}>Get AI Suggestion</button>
+      <div className='buttons'>
+<div>
+
+      <button onClick={getStockfishMove} >Get AI Suggestion</button>
+  
+</div>
+<div>
       <button
         onClick={() => {
           chess.current.reset();
           setGamePosition(chess.current.fen());
           setSuggestedMove(null);
         }}
-      >
+        >
         Reset Game
       </button>
+          </div>
+        </div>
     </div>
   );
 }
