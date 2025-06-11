@@ -22,10 +22,11 @@ function App() {
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [possibleMoves, setPossibleMoves] = useState<Square[]>([]);
   const [evaluationScore, setEvaluationScore] = useState<string | null>(null);
-  const { commentary, generateComment } = useAIService();
+  const { commentary, generateComment,isSpeaking ,stopSpeaking} = useAIService();
   const [lastMove, setLastMove] = useState<string | null>(null);
+  const [muted, setMuted] = useState(false);
 
-  const bestMoveArrows: [Square, Square][] = []; // Define bestMoveArrows as an empty array
+  const bestMoveArrows: [Square, Square][] = [];
 
   const boardStyle = useMemo(() => {
     const style: Record<string, React.CSSProperties> = {};
@@ -59,7 +60,7 @@ function App() {
     setSuggestedMove(null);
     setEvaluationScore(null);
     setLastMove(`${sourceSquare}-${targetSquare}`);
-    generateComment(lastMove, evaluationScore);
+    generateComment(lastMove, evaluationScore,muted);
 
     if (chess.current.isGameOver()) {
       alert('Game Over!');
@@ -71,7 +72,7 @@ function App() {
       //     fen: chess.current.fen(),
       //   });
       // }
-    generateComment(lastMove, evaluationScore);
+    generateComment(lastMove, evaluationScore,muted);
 
     }
 
@@ -99,7 +100,7 @@ function App() {
           setSuggestedMove(null);
           setEvaluationScore(null);
           setLastMove(`${selectedSquare}-${square}`);
-          generateComment(lastMove, evaluationScore);
+          generateComment(lastMove, evaluationScore,muted);
           setSelectedSquare(null);
           setPossibleMoves([]);
         } else {
@@ -117,7 +118,7 @@ function App() {
   }
 
   useEffect(() => {
-    generateComment(lastMove, evaluationScore);
+    generateComment(lastMove, evaluationScore,muted);
     stockfishWorker.current = new Worker(new URL('./stockfishWorker.ts', import.meta.url), {
       type: 'module',
     });
@@ -137,7 +138,24 @@ function App() {
       }
     };
   }, []); 
-
+  useEffect(() => {
+    if (muted) {
+      stopSpeaking(); // Stop any ongoing speech when muted
+    }
+  }, [muted, stopSpeaking]);
+  // useEffect(() => {
+  //   if ('speechSynthesis' in window) {
+  //     speechSynthesis.addEventListener('voiceschanged', () => {
+  //       // const voices = window.speechSynthesis.getVoices();
+  //       console.log("Available Voices:", voices);
+  //     });
+  //     // Also get the voices initially if they are already loaded
+  //     const initialVoices = window.speechSynthesis.getVoices();
+  //     if (initialVoices.length > 0) {
+  //       // console.log("Initial Available Voices:", initialVoices);
+  //     }
+  //   }
+  // }, []);
 
   const appStyle: React.CSSProperties = {
     display: 'flex',
@@ -195,7 +213,13 @@ function App() {
               <p style={{ marginLeft: '20px', marginTop: 0, width: '80vw', fontSize: '1.5em', lineHeight: '1.4' }}>
                 <strong>Samay Raina Commentary:</strong> {commentary}
               </p>
+
             )}
+                              {isSpeaking && <p>AI is speaking...</p>}
+                  {/* {audioUrl && (
+                    <audio controls autoPlay src={audioUrl} />
+                  )} */}
+
         <p>Current FEN: {gamePosition}</p>
   
         <div className='buttons'>
@@ -203,12 +227,21 @@ function App() {
             <button onClick={getStockfishMove} >Get AI Suggestion</button>
           </div>
           <div>
+          <button onClick={() => setMuted(!muted)}>
+            {muted ? "Unmute Commentary" : "Mute Commentary"}
+          </button>
+
+          </div>
+          <div>
             <button
               onClick={() => {
                 chess.current.reset();
                 setGamePosition(chess.current.fen());
                 setSuggestedMove(null);
-              }}
+                setLastMove(null);
+                setEvaluationScore(null);
+                stopSpeaking(); // Stop any ongoing speech           
+                   }}
             >
               Reset Game
             </button>
