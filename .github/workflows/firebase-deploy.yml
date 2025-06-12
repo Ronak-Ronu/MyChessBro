@@ -14,18 +14,32 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20' 
+          node-version: '20'
 
       - name: Install Dependencies
         run: npm ci
 
+      - name: Create .env file
+        run: |
+          cat <<EOT > .env
+          VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET=${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_MEASUREMENT_ID=${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
+          EOT
+          # Print first few chars to verify creation (without exposing secrets)
+          head -n 3 .env
+
       - name: Build React App
-        run: npm run build -- --mode production 
+        run: npm run build -- --mode production
 
       - name: Install Firebase CLI
-        run: npm install -g firebase-tools@13.0.0 
+        run: npm install -g firebase-tools@13.0.0
 
       - name: Deploy to Firebase Hosting
         run: firebase deploy --only hosting --token "${{ secrets.FIREBASE_TOKEN }}"
         env:
-          FIREBASE_PROJECT: ${{ secrets.FIREBASE_PROJECT_ID }} 
+          FIREBASE_PROJECT: ${{ secrets.FIREBASE_PROJECT_ID }}
